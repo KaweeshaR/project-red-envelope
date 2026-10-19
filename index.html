@@ -1,0 +1,573 @@
+<meta name="claude:viewport-fit-sides" content="cover">
+<title>Project Red Envelope</title>
+<style>
+  /* Layout: single vertical scroll, full-bleed color "bands" with a centered
+     content column inside each; story unfolds as stacked cards, ending in
+     a spotlighted question card with a chase-the-cursor "no" button. */
+  :root{
+    --bg:#fbeff2;
+    --surface:#ffffff;
+    --surface-soft:#f6e9ee;
+    --ink:#3a2432;
+    --ink-soft:#7a5b68;
+    --accent:#b5324c;
+    --accent-soft:#e7a6b7;
+    --line:#ebd3da;
+    --turn-bg:#2e1e2b;
+    --turn-ink:#f3e4ea;
+    --turn-ink-soft:#c9a6b5;
+    --shadow:0 18px 40px -20px rgba(58,36,50,0.35);
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --bg:#1c1319;
+      --surface:#2a1e27;
+      --surface-soft:#352530;
+      --ink:#f3e4ea;
+      --ink-soft:#c9a6b5;
+      --accent:#ef93a9;
+      --accent-soft:#6b3a49;
+      --line:#4a3340;
+      --turn-bg:#120c10;
+      --turn-ink:#f3e4ea;
+      --turn-ink-soft:#b78b9b;
+      --shadow:0 18px 40px -20px rgba(0,0,0,0.6);
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#1c1319;
+    --surface:#2a1e27;
+    --surface-soft:#352530;
+    --ink:#f3e4ea;
+    --ink-soft:#c9a6b5;
+    --accent:#ef93a9;
+    --accent-soft:#6b3a49;
+    --line:#4a3340;
+    --turn-bg:#120c10;
+    --turn-ink:#f3e4ea;
+    --turn-ink-soft:#b78b9b;
+    --shadow:0 18px 40px -20px rgba(0,0,0,0.6);
+    color-scheme: dark;
+  }
+
+  *{box-sizing:border-box;}
+  body{
+    background:var(--bg);
+    color:var(--ink);
+    font-family:'Nunito',system-ui,sans-serif;
+    line-height:1.55;
+  }
+  h1,h2,h3{
+    font-family:'Fraunces',Georgia,serif;
+    text-wrap:balance;
+    margin:0;
+  }
+  p{margin:0;}
+  .band{
+    padding-block:64px;
+    padding-left:max(16px, env(safe-area-inset-left,0px));
+    padding-right:max(16px, env(safe-area-inset-right,0px));
+  }
+  .wrap{max-width:520px;margin-inline:auto;}
+  .eyebrow{
+    font-size:12px;
+    font-weight:800;
+    letter-spacing:.14em;
+    text-transform:uppercase;
+    color:var(--accent);
+  }
+
+  /* prototype badge */
+  .proto-badge{
+    position:fixed;
+    top:calc(10px + env(safe-area-inset-top,0px));
+    left:calc(10px + env(safe-area-inset-left,0px));
+    z-index:50;
+    background:var(--ink);
+    color:var(--bg);
+    font-family:'Nunito',sans-serif;
+    font-weight:800;
+    font-size:11px;
+    letter-spacing:.06em;
+    padding:6px 10px;
+    border-radius:999px;
+    opacity:.85;
+  }
+
+  /* hero */
+  .hero{padding-top:calc(64px + env(safe-area-inset-top,0px));text-align:center;position:relative;}
+  .hero .wrap{position:relative;}
+  .envelope{
+    width:200px;height:134px;margin:28px auto 8px;position:relative;
+    cursor:pointer;animation:bob 3.2s ease-in-out infinite;
+  }
+  .envelope:focus-visible{outline:2px solid var(--accent);outline-offset:6px;}
+  @keyframes bob{0%,100%{transform:translateY(0);}50%{transform:translateY(-6px);}}
+  .envelope .body{
+    position:absolute;inset:0;
+    background:var(--accent);
+    border-radius:10px;
+    box-shadow:var(--shadow);
+  }
+  .envelope .flap{
+    position:absolute;top:0;left:0;right:0;height:72px;
+    background:linear-gradient(135deg, var(--accent) 50%, transparent 50.5%) left/50% 100% no-repeat,
+               linear-gradient(225deg, var(--accent) 50%, transparent 50.5%) right/50% 100% no-repeat;
+    filter:brightness(1.12);
+    transform-origin:top center;
+    transition:transform .55s ease, opacity .55s ease;
+  }
+  .envelope.opened .flap{transform:rotate(-150deg) translateY(-4px);opacity:0;}
+  .envelope .seal{
+    position:absolute;top:58px;left:50%;transform:translateX(-50%);
+    width:34px;height:34px;border-radius:50%;
+    background:var(--surface);
+    display:flex;align-items:center;justify-content:center;
+    font-size:16px;color:var(--accent);
+    box-shadow:0 2px 6px rgba(0,0,0,.25);
+    transition:transform .35s ease, opacity .35s ease;
+  }
+  .envelope.opened .seal{transform:translateX(-50%) scale(0);opacity:0;}
+  .hero h1{font-size:28px;margin-top:20px;}
+  .hero .sub{color:var(--ink-soft);margin-top:10px;font-size:15px;}
+  .tap-hint{
+    margin-top:28px;font-size:12.5px;font-weight:800;letter-spacing:.08em;
+    color:var(--accent);text-transform:uppercase;
+    animation:pulse 2s ease-in-out infinite;
+  }
+  @keyframes pulse{0%,100%{opacity:.5;}50%{opacity:1;}}
+
+  /* floating hearts / stars / petals */
+  .floaters{position:absolute;inset:0;pointer-events:none;overflow:visible;}
+  .particle{
+    position:absolute;left:0;top:0;
+    font-size:var(--size,18px);
+    animation:floatUp var(--dur,2.2s) ease-out forwards;
+    will-change:transform,opacity;
+  }
+  @keyframes floatUp{
+    0%{transform:translate(0,0) scale(.5);opacity:0;}
+    12%{opacity:1;}
+    100%{transform:translate(var(--dx,0px),-170px) scale(1);opacity:0;}
+  }
+
+  /* love-letter photo layout */
+  .letter{display:flex;gap:26px;flex-wrap:wrap;justify-content:center;align-items:flex-start;}
+  .letter-text{flex:1 1 260px;min-width:0;}
+  .photo-frame{
+    flex:none;width:148px;position:relative;
+    background:var(--surface);padding:10px 10px 22px;border-radius:4px;
+    box-shadow:var(--shadow);transform:rotate(-4deg);
+  }
+  .photo-frame .tape{
+    position:absolute;top:-10px;left:50%;transform:translateX(-50%) rotate(-3deg);
+    width:54px;height:18px;background:rgba(255,255,255,.5);
+    border:1px solid rgba(255,255,255,.3);
+  }
+  .photo-frame .pic{
+    width:100%;aspect-ratio:1/1;border-radius:2px;
+    background:var(--surface-soft);
+    display:flex;align-items:center;justify-content:center;
+    font-size:30px;color:var(--ink-soft);
+  }
+  .photo-frame .cap{
+    display:block;text-align:center;margin-top:8px;
+    font-family:'Fraunces',Georgia,serif;font-style:italic;
+    font-size:12px;color:var(--ink-soft);
+  }
+
+  /* story cards */
+  .section-head{text-align:center;margin-bottom:34px;}
+  .section-head h2{font-size:24px;margin-top:6px;}
+  .cards{display:flex;flex-direction:column;gap:18px;}
+  .card{
+    background:var(--surface);
+    border:1px solid var(--line);
+    border-radius:18px;
+    padding:18px;
+    display:flex;gap:14px;align-items:flex-start;
+    box-shadow:var(--shadow);
+    opacity:0;transform:translateY(14px);
+    transition:opacity .5s ease, transform .5s ease;
+  }
+  .card.in{opacity:1;transform:translateY(0);}
+  .card .icon{
+    flex:none;width:46px;height:46px;border-radius:12px;
+    background:var(--surface-soft);
+    display:flex;align-items:center;justify-content:center;
+    font-size:20px;
+  }
+  .card .txt h3{font-size:16px;margin-bottom:4px;}
+  .card .txt p{font-size:14.5px;color:var(--ink-soft);min-width:0;}
+
+  /* interlude */
+  .interlude{background:var(--surface-soft);}
+  .chips{display:flex;flex-wrap:wrap;gap:10px;margin-top:20px;}
+  .chip{
+    border:1px solid var(--accent-soft);
+    background:var(--surface);
+    color:var(--ink);
+    border-radius:999px;
+    padding:9px 16px;
+    font-family:'Nunito',sans-serif;
+    font-weight:700;
+    font-size:13.5px;
+    cursor:pointer;
+  }
+  .chip.done{background:var(--accent);color:#fff;border-color:var(--accent);}
+  .reveal{
+    margin-top:14px;min-height:20px;
+    font-size:14px;color:var(--ink-soft);font-style:italic;
+  }
+
+  /* the turn */
+  .turn{background:var(--turn-bg);color:var(--turn-ink);text-align:center;}
+  .turn .eyebrow{color:var(--accent-soft);}
+  .turn p{
+    font-family:'Fraunces',Georgia,serif;
+    font-style:italic;
+    font-size:19px;
+    color:var(--turn-ink);
+    margin-top:14px;
+  }
+
+  /* confession */
+  .confession{text-align:left;}
+  .confession .note{
+    font-size:11px;letter-spacing:.08em;text-transform:uppercase;
+    color:var(--ink-soft);margin-bottom:10px;font-weight:800;
+  }
+  .confession p{font-size:16px;margin-top:0;}
+
+  /* question card */
+  .question-band{text-align:center;}
+  .qcard{
+    background:var(--surface);
+    border:1px solid var(--line);
+    border-radius:22px;
+    padding:30px 24px 26px;
+    box-shadow:var(--shadow);
+    position:relative;
+    min-height:260px;
+  }
+  .qcard h2{font-size:23px;margin-top:8px;}
+  .qcard .hint{color:var(--ink-soft);font-size:13.5px;margin-top:8px;}
+  .btn-row{
+    position:relative;
+    display:flex;gap:14px;justify-content:center;align-items:center;
+    margin-top:28px;height:52px;
+  }
+  .btn{
+    font-family:'Nunito',sans-serif;
+    font-weight:800;
+    font-size:15px;
+    border-radius:999px;
+    border:none;
+    padding:13px 24px;
+    cursor:pointer;
+  }
+  .yes{background:var(--accent);color:#fff;box-shadow:0 10px 20px -8px rgba(181,50,76,.55);}
+  .no{
+    background:transparent;
+    color:var(--ink-soft);
+    border:1px solid var(--line);
+    position:absolute;
+    left:calc(50% + 70px);
+    transition:left .22s ease, top .22s ease;
+  }
+  .no.settled{position:static;}
+  .caption{min-height:18px;margin-top:16px;font-size:13.5px;color:var(--accent);font-weight:700;}
+  .honest-link{
+    display:inline-block;margin-top:18px;font-size:12.5px;color:var(--ink-soft);
+    text-decoration:underline;cursor:pointer;background:none;border:none;font-family:inherit;
+  }
+  .outcome{display:none;margin-top:22px;}
+  .outcome.show{display:block;}
+  .outcome h3{font-size:19px;}
+  .outcome p{color:var(--ink-soft);font-size:14px;margin-top:6px;}
+  .day-chips{display:flex;gap:8px;justify-content:center;margin-top:16px;flex-wrap:wrap;}
+  .day-chip{
+    border:1px solid var(--accent-soft);background:var(--surface-soft);
+    border-radius:999px;padding:8px 14px;font-weight:700;font-size:13px;
+  }
+
+  footer{text-align:center;padding:40px 16px 60px;color:var(--ink-soft);font-size:12px;}
+
+  @media (prefers-reduced-motion: reduce){
+    .envelope .flap, .scroll-cue::after{animation:none;}
+    .card{transition:none;}
+  }
+</style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,650;1,9..144,500&family=Nunito:wght@400;700;800&display=swap" rel="stylesheet">
+
+<div class="proto-badge">PROTOTYPE · placeholder content</div>
+
+<section class="band hero">
+  <div class="wrap">
+    <div class="eyebrow">for you</div>
+    <div class="envelope" id="envelope" role="button" tabindex="0" aria-label="Open the envelope">
+      <div class="body"></div>
+      <div class="flap"></div>
+      <div class="seal">♥</div>
+    </div>
+    <h1 id="heroTitle">Something's inside.</h1>
+    <p class="sub" id="heroSub">Tap the envelope to open it.</p>
+    <p class="tap-hint" id="tapHint">tap to open</p>
+    <div class="floaters" id="heroFloaters"></div>
+  </div>
+</section>
+
+<section class="band">
+  <div class="wrap">
+    <div class="section-head">
+      <div class="eyebrow">a few small things</div>
+      <h2>Moments I kept</h2>
+    </div>
+    <div class="cards" id="cards">
+      <div class="card"><div class="icon">☕</div><div class="txt"><h3>The coffee order</h3><p>Somehow I just remember exactly how you take it. You've never had to repeat it once.</p></div></div>
+      <div class="card"><div class="icon">🎧</div><div class="txt"><h3>The playlist swap</h3><p>You sent one song as a joke. It's been on repeat all week and I'm not telling you that.</p></div></div>
+      <div class="card"><div class="icon">📱</div><div class="txt"><h3>The 2am meme</h3><p>You found the one meme that described my whole personality and sent it with zero context. Still thinking about it.</p></div></div>
+      <div class="card"><div class="icon">🎬</div><div class="txt"><h3>The movie review</h3><p>One star, three paragraphs explaining why. I have never respected a review more.</p></div></div>
+      <div class="card"><div class="icon">🧩</div><div class="txt"><h3>The small thing you noticed</h3><p>You remembered a tiny detail about me I didn't think anyone was paying attention to. Turns out you were.</p></div></div>
+    </div>
+  </div>
+</section>
+
+<section class="band interlude">
+  <div class="wrap">
+    <div class="section-head">
+      <div class="eyebrow">a little game</div>
+      <h2>Tap to see if I'm right</h2>
+    </div>
+    <div class="chips" id="chips">
+      <button class="chip" data-fact="Correct. Every single time, no exceptions.">always says 'five more minutes'</button>
+      <button class="chip" data-fact="Called it. You will not admit this to anyone else.">secretly great at karaoke</button>
+      <button class="chip" data-fact="Confirmed. You have a whole speech ready for this one.">strong opinions on pineapple pizza</button>
+      <button class="chip" data-fact="Obviously. You lose one every single month.">loses one earring constantly</button>
+    </div>
+    <div class="reveal" id="reveal"></div>
+  </div>
+</section>
+
+<section class="band turn">
+  <div class="wrap">
+    <div class="eyebrow">okay</div>
+    <p>Jokes aside for a second.</p>
+  </div>
+</section>
+
+<section class="band confession">
+  <div class="wrap letter">
+    <div class="photo-frame">
+      <div class="tape"></div>
+      <div class="pic">🤍</div>
+      <span class="cap">photo goes here</span>
+    </div>
+    <div class="letter-text">
+      <div class="note">your words go here</div>
+      <p>[Placeholder — this is where your real confession goes, in your own words. Everything above can flex around it, but this paragraph should be the one part that's entirely yours.]</p>
+    </div>
+  </div>
+</section>
+
+<section class="band question-band">
+  <div class="wrap">
+    <div class="qcard">
+      <div class="floaters" id="qFloaters"></div>
+      <div class="eyebrow">a small question</div>
+      <h2>Will you go on a date with me?</h2>
+      <p class="hint">No pressure. There's really only one good answer here.</p>
+      <div class="btn-row" id="btnRow">
+        <button class="btn yes" id="yesBtn">Yes, I'd love to 🤍</button>
+        <button class="btn no" id="noBtn">No</button>
+      </div>
+      <div class="caption" id="caption"></div>
+      <button class="honest-link" id="honestLink">If you'd rather just tell me directly, that's okay too.</button>
+
+      <div class="outcome" id="yesOutcome">
+        <h3>It's a date 🤍</h3>
+        <p>Pick whichever works — the rest we figure out together.</p>
+        <div class="day-chips">
+          <span class="day-chip">Fri</span><span class="day-chip">Sat</span><span class="day-chip">Sun</span>
+        </div>
+      </div>
+      <div class="outcome" id="noOutcome">
+        <h3>Got it.</h3>
+        <p>Thank you for being honest with me — that actually means a lot.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>Project Red Envelope — test build, not the real thing. Everything above is placeholder.</footer>
+
+<script>
+(function(){
+  var reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  function spawnParticle(container, symbol, x, y){
+    var el = document.createElement('span');
+    el.className = 'particle';
+    el.textContent = symbol;
+    el.style.left = x + 'px';
+    el.style.top = y + 'px';
+    el.style.setProperty('--dx', ((Math.random()*160)-80) + 'px');
+    el.style.setProperty('--dur', (1.8 + Math.random()*1.2) + 's');
+    el.style.setProperty('--size', (14 + Math.random()*12) + 'px');
+    container.appendChild(el);
+    el.addEventListener('animationend', function(){ el.remove(); });
+  }
+
+  function burst(container, originX, originY, count, symbols){
+    if (reduceMotion || !container) return;
+    for (var i=0;i<count;i++){
+      (function(i){
+        setTimeout(function(){
+          var sym = symbols[Math.floor(Math.random()*symbols.length)];
+          spawnParticle(container, sym, originX + (Math.random()*30-15), originY + (Math.random()*20-10));
+        }, i*35);
+      })(i);
+    }
+  }
+
+  // gate everything past the hero until the envelope is opened
+  var gated = document.querySelectorAll('section.band:not(.hero)');
+  gated.forEach(function(s){ s.style.display = 'none'; });
+
+  var envelope = document.getElementById('envelope');
+  var heroFloaters = document.getElementById('heroFloaters');
+  var ambientTimer = null;
+
+  function ambientHeart(){
+    var r = envelope.getBoundingClientRect();
+    var hf = heroFloaters.getBoundingClientRect();
+    spawnParticle(heroFloaters, '❤', r.left - hf.left + r.width/2, r.top - hf.top + r.height);
+  }
+  if (!reduceMotion){ ambientTimer = setInterval(ambientHeart, 1600); }
+
+  function openEnvelope(){
+    if (envelope.classList.contains('opened')) return;
+    envelope.classList.add('opened');
+    document.getElementById('heroTitle').textContent = "Here we go.";
+    document.getElementById('heroSub').textContent = "Keep scrolling.";
+    document.getElementById('tapHint').style.display = 'none';
+    if (ambientTimer) clearInterval(ambientTimer);
+    var r = envelope.getBoundingClientRect();
+    var hf = heroFloaters.getBoundingClientRect();
+    burst(heroFloaters, r.left - hf.left + r.width/2, r.top - hf.top + r.height/2, 22, ['❤','✦','🌸']);
+    setTimeout(function(){
+      gated.forEach(function(s){ s.style.display = ''; });
+      var next = document.querySelector('section.band:not(.hero)');
+      if (next) next.scrollIntoView({behavior: reduceMotion ? 'auto' : 'smooth', block:'start'});
+    }, 700);
+  }
+
+  envelope.addEventListener('click', openEnvelope);
+  envelope.addEventListener('keydown', function(e){
+    if (e.key === 'Enter' || e.key === ' '){ e.preventDefault(); openEnvelope(); }
+  });
+
+  // reveal story cards on scroll
+  var cards = document.querySelectorAll('.card');
+  if ('IntersectionObserver' in window){
+    var io = new IntersectionObserver(function(entries){
+      entries.forEach(function(e){ if(e.isIntersecting){ e.target.classList.add('in'); io.unobserve(e.target); } });
+    }, {threshold:.2});
+    cards.forEach(function(c){ io.observe(c); });
+  } else {
+    cards.forEach(function(c){ c.classList.add('in'); });
+  }
+
+  // interlude chips
+  var reveal = document.getElementById('reveal');
+  document.getElementById('chips').addEventListener('click', function(e){
+    var chip = e.target.closest('.chip');
+    if(!chip) return;
+    chip.classList.add('done');
+    reveal.textContent = chip.getAttribute('data-fact');
+  });
+
+  // question card logic
+  var btnRow = document.getElementById('btnRow');
+  var noBtn = document.getElementById('noBtn');
+  var caption = document.getElementById('caption');
+  var yesOutcome = document.getElementById('yesOutcome');
+  var noOutcome = document.getElementById('noOutcome');
+  var honestLink = document.getElementById('honestLink');
+
+  var captions = [
+    "Nice try.",
+    "Almost had it.",
+    "Nope, still no.",
+    "This button has commitment issues.",
+    "Faster than that.",
+    "Getting warmer. Not really.",
+    "You're persistent, I respect it.",
+    "So close. Not quite.",
+    "Still going?",
+    "Okay this is impressive, actually.",
+    "Not falling for it.",
+    "You again.",
+    "Closer... nope."
+  ];
+  var DODGES_TO_SETTLE = 100;
+  var dodges = 0;
+  var settled = false;
+  var lastDodge = 0;
+
+  function showOutcome(which){
+    btnRow.style.display = 'none';
+    caption.textContent = '';
+    honestLink.style.display = 'none';
+    (which === 'yes' ? yesOutcome : noOutcome).classList.add('show');
+  }
+
+  function dodge(){
+    if (settled) return;
+    var now = Date.now();
+    if (now - lastDodge < 120) return; // ignore double-fires from the same approach
+    lastDodge = now;
+    dodges++;
+    var rowRect = btnRow.getBoundingClientRect();
+    var btnW = noBtn.offsetWidth, btnH = noBtn.offsetHeight;
+    var maxLeft = rowRect.width - btnW - 4;
+    var maxTop = rowRect.height - btnH;
+    var newLeft = Math.max(4, Math.random() * maxLeft);
+    var newTop = Math.max(0, Math.random() * maxTop);
+    noBtn.style.left = newLeft + 'px';
+    noBtn.style.top = newTop + 'px';
+    if (dodges >= DODGES_TO_SETTLE){
+      settled = true;
+      noBtn.classList.add('settled');
+      noBtn.style.left = ''; noBtn.style.top = '';
+      caption.textContent = "Alright — you can actually press it now.";
+    } else {
+      caption.textContent = captions[(dodges-1) % captions.length];
+    }
+  }
+
+  // dodges on approach (mouse move near it), on hover, and on touch/click attempts —
+  // harder to pin down than a simple hover-away
+  btnRow.addEventListener('mousemove', function(e){
+    if (settled) return;
+    var r = noBtn.getBoundingClientRect();
+    var cx = r.left + r.width/2, cy = r.top + r.height/2;
+    var dist = Math.hypot(e.clientX - cx, e.clientY - cy);
+    if (dist < 55) dodge();
+  });
+  noBtn.addEventListener('touchstart', function(e){ e.preventDefault(); dodge(); }, {passive:false});
+  noBtn.addEventListener('click', function(){ if (settled) showOutcome('no'); else dodge(); });
+
+  document.getElementById('yesBtn').addEventListener('click', function(){
+    showOutcome('yes');
+    var qFloaters = document.getElementById('qFloaters');
+    if (qFloaters){
+      var r = qFloaters.getBoundingClientRect();
+      burst(qFloaters, r.width/2, r.height/2, 26, ['❤','✦','🌸']);
+    }
+  });
+  honestLink.addEventListener('click', function(){ showOutcome('no'); });
+})();
+</script>
